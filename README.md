@@ -23,7 +23,9 @@ To set up the project, follow these steps:
 ├── LICENSE
 └── README.md
 ```
-
+### Clone the repository
+```bash
+git clone https://github.com/UWINTWALI/Expense_Management.git
 ```
 ### Navigate to the backend directory
 ```bash
@@ -53,4 +55,3 @@ JWT (JSON Web Token) is used to generate tokens for each user.
 nodemon server.js
 ```
 This will start the application. You can access the login page and manage your expenses accordingly.
-# frontend-backend-integration

@@ -1,0 +1,18 @@
+/project-root
+├── backend
+│   ├── node_modules
+│   ├── package-lock.json
+│   ├── package.json
+│   └── server.js
+├── public
+│   ├── background.jpg
+│   ├── index.css
+│   ├── index.html
+│   ├── login.html
+│   ├── main.css
+│   └── register.html
+├── login.js
+├── register.js
+├── LICENSE
+└── README.md
+|__.env
