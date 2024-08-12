@@ -221,7 +221,7 @@ app.put('/api/expense/:expenseId', authenticateToken, (req, res) => {
 });
 
 // Start server
-const server = app.listen(3000, '127.0.0.1', (err) => {
+const server=app.listen(3000, '127.0.0.1', (err) => {
     const host = server.address().address;
     const port = server.address().port;
     console.log("The server is running on http://%s:%s", host, port);

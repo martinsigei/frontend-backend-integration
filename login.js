@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
         const authMsg = document.getElementById('auth-msg');
+        
+        
         try {
             const response = await fetch('http://127.0.0.1:3000/api/login', {
                 method: 'POST',

@@ -4,6 +4,7 @@ To set up the project, follow these steps:
 
 ### Clone the repository
 
+
 ```bash
 git clone https://github.com/martinsigei/frontend-backend-integration.git
 ```

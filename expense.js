@@ -8,7 +8,6 @@ const balanceDisplay = document.getElementById('balance');
 const incomeDisplay = document.getElementById('income');
 const expenseDisplay = document.getElementById('expense');
 const statusDisplay = document.getElementById('status');
-
 // Function to fetch expenses and update the UI
 async function fetchExpenses() {
   statusDisplay.textContent = ''; // Clear previous status message

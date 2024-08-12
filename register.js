@@ -20,6 +20,6 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
             authMsg.textContent = 'Error registering user..';
         }
-        
     });
+    
 });
