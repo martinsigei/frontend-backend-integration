@@ -8,7 +8,6 @@ const balanceDisplay = document.getElementById('balance');
 const incomeDisplay = document.getElementById('income');
 const expenseDisplay = document.getElementById('expense');
 const statusDisplay = document.getElementById('status');
-
 // Function to fetch expenses and update the UI
 async function fetchExpenses() {
   statusDisplay.textContent = ''; // Clear previous status message
@@ -64,14 +63,14 @@ function updateTransactionList(expenses) {
 
     // Edit button
     const editButton = document.createElement('button');
-    editButton.textContent = 'Edit';
     editButton.classList.add('buttons');
+    editButton.textContent = 'Edit';
     editButton.addEventListener('click', () => editExpense(expense));
 
     // Delete button
     const deleteButton = document.createElement('button');
-    deleteButton.textContent = 'Delete';
     deleteButton.classList.add('buttons');
+    deleteButton.textContent = 'Delete';
     deleteButton.addEventListener('click', () => deleteExpense(expense.id));
 
     listItem.appendChild(editButton);
@@ -89,16 +88,8 @@ function updateTransactionList(expenses) {
     if (amount > 0) {
       totalExpense += amount;
     } else {
-      totalIncome += amount;//this is not real reasoning thought,
-      // it is demonseration to make front end function well!!
+      totalIncome += amount;
     }
-    // to make more sense I ca say like if amout recorded is positive let it be income
-    // if negative let it be expense
-    // if (amount > 0) {
-    //   totalIncome += amount;
-    // } else {
-    //   totalExpense += amount;
-    // }
   });
 
   // Ensure totalIncome, totalExpense, and totalBalance are numbers

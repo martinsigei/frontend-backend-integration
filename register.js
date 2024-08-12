@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function () {
         
         try {
 
-            const response = await fetch('http://127.0.0.1:3000/register', {
+            const response = await fetch('http://127.0.0.1:3000/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, username, password })
@@ -20,6 +20,6 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
             authMsg.textContent = 'Error registering user..';
         }
-        
     });
+    
 });
