@@ -1,105 +1,228 @@
-const express=require('express');
-const app=express();
-const mysql=require('mysql2');
-const dotenv=require('dotenv');
-const cors =require('cors');
-const bcrypt=require('bcrypt');
-const bodyParser=require('body-parser');
-const encoder=bodyParser.urlencoded();
+require('dotenv').config();
+const express = require('express');
+const mysql = require('mysql2');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const cors = require('cors');
+const path= require('path')
 
-
-app.use(express.json())
+// Initialize Express app
+const app = express();
 app.use(cors());
-dotenv.config()
+app.use(express.json());
 
-const financeapp=mysql.createConnection({
-    host:process.env.DB_HOST,
-    user:process.env.DB_USER,
-    password:process.env.DB_PASSWORD,
-    database:process.env.DB_NAME
+// Serve static files from the "public" directory
+app.use(express.static(path.join(__dirname, '../public')));
+
+// Route: Home
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public', 'index.html'));
 });
 
-financeapp.connect((err) => {
+// Create database connection
+const connection = mysql.createConnection({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+});
+
+// Connect to database and set up initial schema
+connection.connect((err) => {
     if (err) {
-        console.error('Error connecting to the database:', err.stack);
-        return;
-    }
-    console.log('Connected to the database as id', financeapp.threadId);
-
-     })
-
-
-     const createUssersTable=`
-     CREATE TABLE IF NOT EXISTS users(
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        email VARCHAR(100) NOT NULL UNIQUE,
-        username VARCHAR(50) NOT NULL,
-        password VARCHAR(255) NOT NULL
-        
-        )`;
-
- financeapp.query(createUssersTable,(err,result)=>{
-     if(err) console.log("error creating table")
-     else{
-     console.log("users table is created/checked successfully");
-     }
-     })
-
-  
-app.post('/register',encoder,async(req,res)=>{
-    var username=req.body.username;
-    var password=req.body.password;
-    try{
-        const users=`SELECT*FROM users WHERE email=?`;
-        financeapp.query(users,[req.body.email,(err,data)=>{
-            if (err) return res.status(500).json("Internal server error");
-            if (data.length>0)return res.status(409).json("user already exists")
-            const hashedPassword = bcrypt.hashSync(req.body.password, 10);
-            const newUser = `INSERT INTO user (email,username,password)VALUES(?)`
-            value=[req.body.email,req.body.username,req.body.password]
-            financeapp.query(newUser,[value],(err,data)=>{
-                if(err) return res.status(400).json("something went wrong")
-
-                res.status(200).json("user created successfully");
-            });
-        }]);
-    }
-    catch(err){
-        res.status(500).json("Internal server Error");
+        console.error("Error connecting to database:", err);
+    } else {
+        console.log("Successful connection to database!");
+        setupDatabase();
     }
 });
 
-app.post('/login'),async(req,res)=>{
-    try{
-        const users=`SELECT*FROM users WHERE email=?`
-        financeapp.query(users,[req.body.email],(err,data)=>{
-            if(data.length>0){
-                res.redirect("/public/index.html");
-            }else{
-                res.redirect("/");
-            }
-            res.end();
-            if (err) return res.status(500).json("Internal server error");
-            if(data.length===0) return res.status(404).json("user not found");
+function setupDatabase() {
+    const db = `CREATE DATABASE IF NOT EXISTS martin_expense_tracker`;
+    connection.query(db, (err) => {
+        if (err) {
+            console.error("Error creating database:", err);
+        } else {
+            connection.changeUser({ database: 'martin_expense_tracker' }, (err) => {
+                if (err) {
+                    console.error("Error selecting database:", err);
+                } else {
+                    console.log("Database `martin_expense_tracker` selected!");
+                    createTables();
+                }
+            });
+        }
+    });
+}
 
-            const isPasswordValid=bcrypt.compareSync(req.body.password,data[0].password)
+function createTables() {
+    const tbUsers = `CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        email VARCHAR(100) NOT NULL,
+        username VARCHAR(255) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL
+    )`;
+    connection.query(tbUsers, (err) => {
+        if (err) {
+            console.error("Failed to create users table:", err);
+        } else {
+            console.log("Table users created successfully!");
+        }
+    });
 
-            if(!isPasswordValid) return res.status(400).json("Invalid password or email")
+    const tbExpenses = `CREATE TABLE IF NOT EXISTS expenses (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT,
+        amount DECIMAL(10,2) NOT NULL,
+        date DATE NOT NULL,
+        category VARCHAR(50),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )`;
+    connection.query(tbExpenses, (err) => {
+        if (err) {
+            console.error("Error creating expenses table:", err);
+        } else {
+            console.log("Table expenses created successfully!");
+        }
+    });
+}
 
-            return res.status(201).json("login successful")
-        })
-    }
-    catch(err){
-        res.status(500).json("internal server Error")
-    }
+// Middleware: Authenticate Token
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (token == null) return res.sendStatus(401); // Unauthorized
+
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+        if (err) return res.sendStatus(403); // Forbidden
+        req.user = user;
+        next();
+    });
 };
 
+// Route: User Registration
+app.post('/api/register', (req, res) => {
+    try {
+        const sqlUsers = `SELECT * FROM users WHERE username= ?`;
+        connection.query(sqlUsers, [req.body.username], (err, data) => {
+            if (err) return res.status(500).json("Database query error");
+            if (data.length > 0) return res.status(409).json("User already exists!");
 
-app.get('/public/login.html',(req,res)=>{
-    res.sendFile(__dirname+"/public/index.html")
+            const salt = bcrypt.genSaltSync(10);
+            const hashedPassword = bcrypt.hashSync(req.body.password, salt);
+
+            const newUser = `INSERT INTO users(email, username, password) VALUES(?, ?, ?)`;
+            const values = [req.body.email, req.body.username, hashedPassword];
+            connection.query(newUser, values, (err, data) => {
+                if (err) return res.status(500).json("Something went wrong");
+                return res.status(201).json("User registered successfully!");
+            });
+        });
+    } catch (error) {
+        return res.status(500).json("Internal server error");
+    }
 });
 
+// Route: User Login
+app.post('/api/login', (req, res) => {
+    try {
+        const sqlUser = `SELECT * FROM users WHERE username = ?`;
+        connection.query(sqlUser, [req.body.username], (err, data) => {
+            if (err) return res.status(500).json("Database query error");
+            if (data.length === 0) return res.status(400).json("User not found");
 
-app.listen(3000,()=>{
-    console.log("server is running on PORT 3000")
+            const isPasswordValid = bcrypt.compareSync(req.body.password, data[0].password);
+            if (!isPasswordValid) return res.status(400).json("Invalid username or password!");
+
+            const user = { id: data[0].id, username: data[0].username };
+            const accessToken = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+
+            return res.status(200).json({ token: accessToken });
+        });
+    } catch (error) {
+        res.status(500).json("Internal server error");
+    }
+});
+
+// Route: Add Expense
+app.post('/api/expense', authenticateToken, (req, res) => {
+    const { amount, date, category } = req.body;
+    const userId = req.user.id;
+
+    if (!amount || !date || !category) {
+        return res.status(400).json("All fields are required.");
+    }
+
+    const insertExpense = `INSERT INTO expenses(user_id, amount, date, category) VALUES(?, ?, ?, ?)`;
+    const values = [userId, amount, date, category];
+    
+    connection.query(insertExpense, values, (err, data) => {
+        if (err) {
+            console.error("Database error:", err);
+            return res.status(500).json("Database error");
+        }
+        return res.status(200).json("Expense added successfully!");
+    });
+});
+
+// Route: View Expenses
+app.get('/api/expense', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const viewExpense = `SELECT * FROM expenses WHERE user_id = ?`;
+
+    connection.query(viewExpense, [userId], (err, data) => {
+        if (err) return res.status(500).json("Internal server error");
+        return res.status(200).json(data);
+    });
+});
+
+// Route: Delete Expense
+app.delete('/api/expense/:expenseId', authenticateToken, (req, res) => {
+    const userId = req.user.id;
+    const expenseId = req.params.expenseId;
+    console.log('Deleting expense with ID:', expenseId, 'for user ID:', userId);
+
+    const deleteExpenseQuery = `DELETE FROM expenses WHERE user_id = ? AND id = ?`;
+
+    connection.query(deleteExpenseQuery, [userId, expenseId], (err, result) => {
+        if (err) {
+            console.error('SQL Error:', err);
+            return res.status(500).json("Error deleting expense");
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json("Expense not found");
+        }
+        return res.status(200).json("Expense deleted successfully!");
+    });
+});
+
+// Route: Update Expense
+app.put('/api/expense/:expenseId', authenticateToken, (req, res) => {
+    const expenseId = req.params.expenseId;
+    const { amount, date, category } = req.body;
+    const userId = req.user.id;
+
+    if (!amount || !date || !category) {
+        return res.status(400).json("All fields are required.");
+    }
+
+    const updateExpenseQuery = `UPDATE expenses SET amount = ?, date = ?, category = ? WHERE user_id = ? AND id = ?`;
+    const values = [amount, date, category, userId, expenseId];
+
+    connection.query(updateExpenseQuery, values, (err, result) => {
+        if (err) {
+            console.error('SQL Error:', err);
+            return res.status(500).json("Error updating expense");
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json("Expense not found");
+        }
+        return res.status(200).json("Expense updated successfully!");
+    });
+});
+
+// Start server
+const server = app.listen(3000, '127.0.0.1', (err) => {
+    const host = server.address().address;
+    const port = server.address().port;
+    console.log("The server is running on http://%s:%s", host, port);
 });
